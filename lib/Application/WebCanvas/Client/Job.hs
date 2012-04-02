@@ -33,13 +33,13 @@ nextUUID mc = do
   t <- getCurrentTime 
   return . generateNamed namespaceURL . B.unpack . SC.pack $ c ++ "/" ++ show t 
 
-startCreate :: WebcanvasClientConfiguration -> String -> IO () 
-startCreate mc name = do 
+startCreate :: WebcanvasClientConfiguration -> UTCTime -> IO () 
+startCreate mc ctime = do 
   putStrLn "job started"
   cwd <- getCurrentDirectory
   let url = webcanvasServerURL mc 
   uuid <- nextUUID mc
-  let info = WebcanvasInfo { webcanvas_uuid = uuid , webcanvas_name = name } 
+  let info = WebCanvasItem { webcanvas_uuid = uuid , webcanvas_creationtime = ctime } 
   response <- webcanvasToServer url ("uploadwebcanvas") methodPost info
   putStrLn $ show response 
 
@@ -54,15 +54,15 @@ startGet mc idee = do
 
 startPut :: WebcanvasClientConfiguration 
          -> String  -- ^ webcanvas idee
-         -> String  -- ^ webcanvas name 
+         -> UTCTime  -- ^ webcanvas creation time 
          -> IO () 
-startPut mc idee name = do 
+startPut mc idee ctime = do 
   putStrLn "job started"
   cwd <- getCurrentDirectory
   let url = webcanvasServerURL mc 
       info = case fromString idee of 
                Nothing -> error "strange in startPut" 
-               Just idee' -> WebcanvasInfo { webcanvas_uuid = idee', webcanvas_name = name }
+               Just idee' -> WebCanvasItem { webcanvas_uuid = idee', webcanvas_creationtime = ctime }
   response <- webcanvasToServer url ("webcanvas" </> idee) methodPut info
   putStrLn $ show response 
 
@@ -95,7 +95,7 @@ jsonFromServer url api mthd = do
       then return . parseJson . SC.concat . C.toChunks . responseBody $ r
       else return (Left $ "status code : " ++ show (statusCode r)) 
 
-webcanvasToServer :: Url -> String -> Method -> WebcanvasInfo -> IO (Either String (Result Value))
+webcanvasToServer :: Url -> String -> Method -> WebCanvasItem -> IO (Either String (Result Value))
 webcanvasToServer url api mthd mi = do 
   request <- parseUrl (url </> api)
   withManager $ \manager -> do
